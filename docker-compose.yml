@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  poll:
+    build: ./poll
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: mydb
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    ports:
+      - "5002:80"  
+    networks:
+      - poll-tier
+      - back-tier
+
+  result:
+    build: ./result
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: mydb
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    ports:
+      - "5003:80"  
+    networks:
+      - result-tier
+      - back-tier
+
+  worker:
+    build: ./worker
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: mydb
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    depends_on:
+      - redis
+      - db
+    networks:
+      - back-tier
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - back-tier
+    ports:
+      - "5433:5432"  
+
+  redis:
+    image: redis:7
+    networks:
+      - poll-tier
+      - result-tier
+      - back-tier
+    ports:
+      - "6379:6379"
+
+networks:
+  poll-tier:
+    driver: bridge
+  result-tier:
+    driver: bridge
+  back-tier:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local
